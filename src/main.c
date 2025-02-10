@@ -6,10 +6,10 @@
 #include "array.h"
 
 #define BACKGROUND_COLOR (Color){0x18, 0x18, 0x18, 0xff}
-#define BLOB_COLOR (Color){0xff, 0xdd, 0x33, 0xff}
+#define FOREGROUND_COLOR (Color){0xff, 0xdd, 0x33, 0xff}
 #define BLOB_SIZE 5
 #define K 0.005f
-#define N_BLOBS 500
+#define SPAWN_RATE_BLOBS 500
 #define SPRING_LENGTH 250
 #define BLOB_MAX_SPEED 5.0f
 #define BLOB_DRAG 0.98f
@@ -81,25 +81,20 @@ void render_blob(blob_t* blob) {
     DrawRectangleV(blob->pos, (Vector2) {blob->size, blob->size}, blob->color);
 }
 
-
-int main(void) {
-    InitWindow(1280, 720, "FDG");
-    SetTargetFPS(60);
-
-    Camera2D camera = {0};
-    camera.zoom = 1.0f;
-
+void spawn_blobs_and_springs(int num_blobs) {
+    springs = NULL;
+    blobs = NULL;
     // Create some blobs
-    for (int i = 0; i < N_BLOBS; i++) {
+    for (int i = 0; i < num_blobs; i++) {
         Vector2 pos = {
             .x = GetRandomValue(10, 1270),
             .y = GetRandomValue(10, 710)
         };
-        blob_t blob = create_blob(pos, BLOB_SIZE, BLOB_COLOR);
+        blob_t blob = create_blob(pos, BLOB_SIZE, FOREGROUND_COLOR);
         array_push(blobs, blob);
     }
 
-    // Create some springs
+    // Connect springs to blobs
     for (int i = 0; i < array_length(blobs); i++) {
         for (int j = i + 1; j < array_length(blobs); j++) {
             blob_t* b1 = &blobs[i];
@@ -108,10 +103,26 @@ int main(void) {
             array_push(springs, spring);
         }
     }
+}
+
+
+int main(void) {
+    InitWindow(1280, 720, "FDG");
+    SetTargetFPS(60);
+
+    Camera2D camera = {0};
+    camera.zoom = 1.0f;
+    int num_total_blobs = 0;
 
     while (!WindowShouldClose()) {
         BeginDrawing();
             ClearBackground(BACKGROUND_COLOR);
+
+            if(IsKeyPressed(KEY_D)) {
+                num_total_blobs += SPAWN_RATE_BLOBS;
+                spawn_blobs_and_springs(num_total_blobs);
+            }
+
             BeginMode2D(camera);
                 for (int i = 0; i < array_length(springs); i++) {
                     spring_t* spring = &springs[i];
@@ -124,7 +135,7 @@ int main(void) {
                     render_blob(blob);
                 }
             EndMode2D();
-            DrawFPS(10, 10);
+            DrawText(TextFormat("FPS: %d", GetFPS()), 10, 10, 24, FOREGROUND_COLOR);
         EndDrawing();
     }
     CloseWindow();
