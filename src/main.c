@@ -86,10 +86,12 @@ void accelerate_blob(blob_t* blob, HMM_Vec2 f) {
     blob->acc = HMM_AddV2(blob->acc, f);
 }
 
-HMM_Vec2 vec2_clamp(HMM_Vec2 v, float min, float max) {
-    float clamped_mag = HMM_Clamp(HMM_LenV2(v), min, max);
-    v = HMM_NormV2(v);
-    v = HMM_MulV2F(v, clamped_mag);
+static inline HMM_Vec2 vec2_clamp(HMM_Vec2 v, float min, float max) {
+    if (HMM_LenV2(v) > 0.0f) {
+        float clamped_mag = HMM_Clamp(HMM_LenV2(v), min, max);
+        v = HMM_NormV2(v);
+        v = HMM_MulV2F(v, clamped_mag);
+    }
     return v;
 }
 
