@@ -1,5 +1,4 @@
 build:
-	clang -Wall -O3 -std=c99 src/*.c `pkg-config raylib --cflags --libs` -o fdg
-
+	clang -Wpedantic -Wall -std=c99 src/*.c `pkg-config SDL3 --cflags --libs` -o fdg
 run:
 	./fdg

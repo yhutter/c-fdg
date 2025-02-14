@@ -1,145 +1,66 @@
-#include <stdlib.h>
-#include <stdio.h>
+#define SDL_MAIN_USE_CALLBACKS
+#include <SDL3/SDL_main.h>
+#include <SDL3/SDL_log.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_timer.h>
 
-#include "raylib.h"
-#include "raymath.h"
-#include "array.h"
+SDL_Window * window = NULL;
+int window_width = 1280;
+int window_height = 720;
+Uint64 start_time = 0;
+Uint64 current_time = 0;
 
-#define BACKGROUND_COLOR (Color){0x18, 0x18, 0x18, 0xff}
-#define FOREGROUND_COLOR (Color){0xff, 0xdd, 0x33, 0xff}
-#define BLOB_SIZE 5
-#define K 0.005f
-#define SPAWN_RATE_BLOBS 500
-#define SPRING_LENGTH 250
-#define BLOB_MAX_SPEED 5.0f
-#define BLOB_DRAG 0.98f
-
-typedef struct {
-    Vector2 pos;
-    Vector2 acc;
-    Vector2 vel;
-    Color color;
-    float size;
-} blob_t;
-
-typedef struct {
-    float length;
-    blob_t* b1;
-    blob_t* b2;
-} spring_t;
-
-blob_t* blobs = NULL;
-spring_t* springs = NULL;
+SDL_Renderer* renderer = NULL;
 
 
-spring_t create_spring(float length, blob_t* b1, blob_t* b2) {
-    spring_t spring = {
-        .length = length,
-        .b1 = b1,
-        .b2 = b2
-    };
-    return spring;
-}
-
-void accelerate_blob(blob_t* blob, Vector2 f) {
-    // f = m * a -> a = f / m (note that mass is 1
-    blob->acc = Vector2Add(blob->acc, f);
-}
-
-void spring_move_blobs(spring_t* s) {
-    Vector2 f = Vector2Subtract(s->b2->pos, s->b1->pos);
-    float mag = K * (Vector2Length(f) - s->length);
-    f = Vector2ClampValue(f, 0.0, mag);
-
-    accelerate_blob(s->b1, f);
-    f = Vector2Scale(f, -1.0f);
-    accelerate_blob(s->b2, f);
-}
-
-
-blob_t create_blob(Vector2 pos, float size, Color color) {
-    blob_t blob = {
-        .pos = pos,
-        .acc = {0.0f, 0.0f},
-        .vel = {0.0f, 0.0f},
-        .size = size,
-        .color = color
-    };
-    return blob;
-}
-
-
-void update_blob_position(blob_t* blob) {
-    blob->vel = Vector2Add(blob->vel, blob->acc);
-    blob->vel = Vector2Scale(blob->vel, BLOB_DRAG);
-    blob->vel = Vector2ClampValue(blob->vel, 0.0f, BLOB_MAX_SPEED);
-    blob->pos = Vector2Add(blob->pos, blob->vel);
-    blob->acc = Vector2Zero();
-}
-
-void render_blob(blob_t* blob) {
-    DrawRectangleV(blob->pos, (Vector2) {blob->size, blob->size}, blob->color);
-}
-
-void spawn_blobs_and_springs(int num_blobs) {
-    springs = NULL;
-    blobs = NULL;
-    // Create some blobs
-    for (int i = 0; i < num_blobs; i++) {
-        Vector2 pos = {
-            .x = GetRandomValue(10, 1270),
-            .y = GetRandomValue(10, 710)
-        };
-        blob_t blob = create_blob(pos, BLOB_SIZE, FOREGROUND_COLOR);
-        array_push(blobs, blob);
+// Main Entry Point of the Application
+SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
+        SDL_Log("ERROR: Failed to initialize SDL because of '%s'", SDL_GetError());
+        return SDL_APP_FAILURE;
     }
+    window = SDL_CreateWindow("FDG", window_width, window_height, 0);
+    if (window == NULL) {
+        SDL_Log("ERROR: Failed to create SDL window because of '%s'", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+    renderer = SDL_CreateRenderer(window, NULL);
+    if (renderer == NULL) {
+        SDL_Log("ERROR: Failed to create SDL renderer because of '%s'", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+    start_time = SDL_GetTicks();
+    return SDL_APP_CONTINUE;
+}
 
-    // Connect springs to blobs
-    for (int i = 0; i < array_length(blobs); i++) {
-        for (int j = i + 1; j < array_length(blobs); j++) {
-            blob_t* b1 = &blobs[i];
-            blob_t* b2 = &blobs[j];
-            spring_t spring = create_spring(SPRING_LENGTH, b1, b2);
-            array_push(springs, spring);
-        }
+// Called every tick
+SDL_AppResult SDL_AppIterate(void *appstate) {
+    current_time = SDL_GetTicks();
+    Uint64 delta_time = current_time - start_time;
+
+    SDL_SetRenderDrawColor(renderer, 0x18, 0x18, 0x18, 0xff);
+    SDL_RenderClear(renderer);
+
+    SDL_RenderPresent(renderer);
+
+    start_time = current_time;
+    return SDL_APP_CONTINUE;
+}
+
+// Process any events
+SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
+    switch(event->type) {
+        case SDL_EVENT_QUIT:
+            return SDL_APP_SUCCESS;
+        default:
+            return SDL_APP_CONTINUE;
     }
 }
 
-
-int main(void) {
-    InitWindow(1280, 720, "FDG");
-    SetTargetFPS(60);
-
-    Camera2D camera = {0};
-    camera.zoom = 1.0f;
-    int num_total_blobs = 0;
-
-    while (!WindowShouldClose()) {
-        BeginDrawing();
-            ClearBackground(BACKGROUND_COLOR);
-
-            if(IsKeyPressed(KEY_D)) {
-                num_total_blobs += SPAWN_RATE_BLOBS;
-                spawn_blobs_and_springs(num_total_blobs);
-            }
-
-            BeginMode2D(camera);
-                for (int i = 0; i < array_length(springs); i++) {
-                    spring_t* spring = &springs[i];
-                    spring_move_blobs(spring);
-                }
-
-                for (int i = 0; i < array_length(blobs); i++) {
-                    blob_t* blob = &blobs[i];
-                    update_blob_position(blob);
-                    render_blob(blob);
-                }
-            EndMode2D();
-            DrawText(TextFormat("FPS: %d", GetFPS()), 10, 10, 24, FOREGROUND_COLOR);
-        EndDrawing();
-    }
-    CloseWindow();
-    array_free(blobs);
-    array_free(springs);
-    return 0;
+// Shutdown
+void SDL_AppQuit(void *appstate, SDL_AppResult result) {
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 }
+
