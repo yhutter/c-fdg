@@ -136,8 +136,6 @@ void render_blob(blob_t* blob) {
 /////////////////////////
 // Game Loop Functions
 /////////////////////////
-
-
 bool initialize(void) {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         SDL_Log("ERROR: Failed to initialize SDL because of '%s'", SDL_GetError());
@@ -183,10 +181,14 @@ void process(void) {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         switch(e.type) {
-            case SDL_EVENT_QUIT: {
+            case SDL_EVENT_QUIT:
                 running = false;
                 break;
-            }
+            case SDL_EVENT_KEY_DOWN: 
+                if (e.key.key ==  SDLK_ESCAPE) {
+                    running = false;
+                    break;
+                }
         }
     }
 }
@@ -226,6 +228,8 @@ void render(void) {
 }
 
 void shutdown(void) {
+    array_free(springs);
+    array_free(blobs);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
