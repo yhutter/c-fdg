@@ -33,7 +33,7 @@ typedef struct {
 
 #define BLOB_SIZE 5
 #define K 0.005f
-#define SPAWN_RATE_BLOBS 500
+#define SPAWN_RATE_BLOBS 500 
 #define SPRING_LENGTH 250
 #define BLOB_MAX_SPEED 5.0f
 #define BLOB_DRAG 0.98f
@@ -187,8 +187,6 @@ void update(void) {
         SDL_Delay(time_to_wait);
     }
 
-    Uint64 fps = 1000 / delta_time;
-    SDL_Log("FPS: is %llu\n", fps);
     for (int i = 0; i < array_length(springs); i++) {
         spring_t* spring = &springs[i];
         spring_move_blobs(spring);
