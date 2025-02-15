@@ -14,17 +14,9 @@
 // Struct definitions
 /////////////////////////
 typedef struct {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
-} color_t;
-
-typedef struct {
     HMM_Vec2 pos;
     HMM_Vec2 acc;
     HMM_Vec2 vel;
-    color_t color;
     float size;
 } blob_t;
 
@@ -39,8 +31,6 @@ typedef struct {
 // Global Variables
 /////////////////////////
 
-#define BACKGROUND_COLOR (color_t){0x18, 0x18, 0x18, 0xff}
-#define FOREGROUND_COLOR (color_t){0xff, 0xdd, 0x33, 0xff}
 #define BLOB_SIZE 5
 #define K 0.005f
 #define SPAWN_RATE_BLOBS 500
@@ -61,17 +51,17 @@ SDL_Renderer* renderer = NULL;
 
 blob_t* blobs = NULL;
 spring_t* springs = NULL;
+SDL_FRect* blobs_rect = NULL;
 
 /////////////////////////
 // Functions
 /////////////////////////
-blob_t create_blob(HMM_Vec2 pos, float size, color_t color) {
+blob_t create_blob(HMM_Vec2 pos, float size) {
     blob_t blob = {
         .pos = pos,
         .acc = HMM_V2(0.0f, 0.0f),
         .vel = HMM_V2(0.0f, 0.0f),
         .size = size,
-        .color = color
     };
     return blob;
 }
@@ -115,22 +105,15 @@ void update_blob_position(blob_t* blob) {
     blob->vel = vec2_clamp(blob->vel, 0.0f, BLOB_MAX_SPEED);
     blob->pos = HMM_AddV2(blob->pos, blob->vel);
     blob->acc = HMM_V2(0.0f, 0.0f);
-}
 
-void render_blob(blob_t* blob) {
-    uint8_t r = blob->color.r;
-    uint8_t g = blob->color.g;
-    uint8_t b = blob->color.b;
-    uint8_t a = blob->color.a;
-    SDL_SetRenderDrawColor(renderer, r, g, b, a);
-
-    SDL_FRect rect = {
+    // Update SDL_FRects
+    SDL_FRect blob_rect = {
         .x = blob->pos.X,
         .y = blob->pos.Y,
         .w = blob->size,
-        .h = blob->size,
+        .h = blob->size
     };
-    SDL_RenderFillRect(renderer, &rect);
+    array_push(blobs_rect, blob_rect);
 }
 
 /////////////////////////
@@ -161,7 +144,7 @@ bool initialize(void) {
         float random_x = 10 + rand() % 1270;
         float random_y = 10 + rand() % 710;
         HMM_Vec2 pos = HMM_V2(random_x, random_y);
-        blob_t blob = create_blob(pos, BLOB_SIZE, FOREGROUND_COLOR);
+        blob_t blob = create_blob(pos, BLOB_SIZE);
         array_push(blobs, blob);
     }
 
@@ -204,12 +187,14 @@ void update(void) {
         SDL_Delay(time_to_wait);
     }
 
-    SDL_Log("Delta Ms: is %llu\n", delta_time);
+    Uint64 fps = 1000 / delta_time;
+    SDL_Log("FPS: is %llu\n", fps);
     for (int i = 0; i < array_length(springs); i++) {
         spring_t* spring = &springs[i];
         spring_move_blobs(spring);
     }
 
+    blobs_rect = NULL;
     for (int i = 0; i < array_length(blobs); i++) {
         blob_t* blob = &blobs[i];
         update_blob_position(blob);
@@ -220,16 +205,15 @@ void update(void) {
 void render(void) {
     SDL_SetRenderDrawColor(renderer, 0x18, 0x18, 0x18, 0xff);
     SDL_RenderClear(renderer);
-    for (int i = 0; i < array_length(blobs); i++) {
-        blob_t* blob = &blobs[i];
-        render_blob(blob);
-    }
+    SDL_SetRenderDrawColor(renderer, 0xff, 0xdd, 0x33, 0xff);
+    SDL_RenderFillRects(renderer, blobs_rect, array_length(blobs_rect));
     SDL_RenderPresent(renderer);
 }
 
 void shutdown(void) {
     array_free(springs);
     array_free(blobs);
+    array_free(blobs_rect);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
